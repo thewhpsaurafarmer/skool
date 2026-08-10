@@ -62,6 +62,18 @@ h3 {
     margin-bottom: 6px;
 }
 
+.checkboxLabel {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkboxLabel input {
+    width: auto;
+    flex-shrink: 0;
+}
+
 input,
 select {
     width: 100%;
@@ -293,6 +305,43 @@ button:disabled {
     margin-top: 40px;
 }
 
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 100;
+}
+
+.modalCard {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 25px;
+    width: 100%;
+    max-width: 380px;
+}
+
+.colorRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.colorRow input[type="color"] {
+    width: 50px;
+    height: 42px;
+    padding: 3px;
+    flex: none;
+}
+
+.colorPreview {
+    font-weight: bold;
+}
+
 @media (max-width: 650px) {
     #roomLayout {
         grid-template-columns: 1fr;
@@ -389,6 +438,13 @@ button:disabled {
                 </select>
             </div>
 
+            <div class="field">
+                <label class="checkboxLabel">
+                    <input type="checkbox" id="privateRoom">
+                    private room (needs a code, hidden from the browse list)
+                </label>
+            </div>
+
             <div class="row">
                 <button id="createRoomButton" class="green">
                     create
@@ -477,7 +533,11 @@ button:disabled {
                 </div>
             </div>
 
-            <div>
+            <div class="row">
+                <button id="settingsButton" class="dark">
+                    settings
+                </button>
+
                 <button id="leaveButton" class="red">
                     leave
                 </button>
@@ -539,6 +599,32 @@ button:disabled {
 
             </div>
 
+        </div>
+
+    </div>
+
+</div>
+
+
+<div id="settingsModal" class="modalOverlay hidden">
+
+    <div class="modalCard">
+
+        <h3>settings</h3>
+
+        <div class="field">
+            <label>chat name color</label>
+
+            <div class="colorRow">
+                <input type="color" id="chatColorInput" value="#65d883">
+                <span id="colorPreview" class="colorPreview">preview name</span>
+            </div>
+        </div>
+
+        <div class="row">
+            <button id="closeSettings" class="dark">
+                close
+            </button>
         </div>
 
     </div>
@@ -613,6 +699,10 @@ let browserListener = null;
 
 let disconnectPlayerRef = null;
 let disconnectNameRef = null;
+
+let currentColor =
+    localStorage.getItem("chatColor") ||
+    "#65d883";
 
 
 /* ============================== */
@@ -920,6 +1010,10 @@ function startRoomBrowser() {
                     return false;
                 }
 
+                if (room.private) {
+                    return false;
+                }
+
                 if (room.started) {
                     return false;
                 }
@@ -1106,6 +1200,11 @@ document.getElementById(
             ).value
         );
 
+    const isPrivate =
+        document.getElementById(
+            "privateRoom"
+        ).checked;
+
     if (!validRoomName(roomName)) {
 
         setError(
@@ -1192,6 +1291,7 @@ document.getElementById(
                 name: roomName,
                 host: currentUser.uid,
                 maxPlayers: maxPlayers,
+                private: isPrivate,
                 started: false,
                 createdAt: serverTimestamp()
             }
@@ -1670,9 +1770,12 @@ function listenToRoom() {
                 document.getElementById(
                     "roomStatus"
                 ).textContent =
-                    room.started
+                    (room.started
                         ? "started"
-                        : "waiting";
+                        : "waiting") +
+                    (room.private
+                        ? " · private"
+                        : "");
 
                 if (room.started) {
 
@@ -1873,6 +1976,11 @@ function listenToMessages() {
                         messageName.className =
                             "messageName";
 
+                        messageName.style.color =
+                            /^#[0-9a-fA-F]{6}$/.test(message.color || "")
+                                ? message.color
+                                : "#eee";
+
                         messageName.textContent =
                             message.name + ":";
 
@@ -1961,6 +2069,7 @@ async function sendMessage() {
                 uid: currentUser.uid,
                 name: currentName,
                 text: message,
+                color: currentColor,
                 timestamp: serverTimestamp()
             }
         );
@@ -2080,6 +2189,89 @@ document.getElementById(
             );
         }
     };
+
+
+/* ============================== */
+/* SETTINGS                       */
+/* ============================== */
+
+const settingsModal =
+    document.getElementById(
+        "settingsModal"
+    );
+
+const chatColorInput =
+    document.getElementById(
+        "chatColorInput"
+    );
+
+const colorPreview =
+    document.getElementById(
+        "colorPreview"
+    );
+
+function updateColorPreview() {
+
+    colorPreview.style.color =
+        chatColorInput.value;
+}
+
+document.getElementById(
+    "settingsButton"
+).onclick = () => {
+
+    chatColorInput.value =
+        currentColor;
+
+    updateColorPreview();
+
+    settingsModal.classList.remove(
+        "hidden"
+    );
+};
+
+chatColorInput.addEventListener(
+    "input",
+    updateColorPreview
+);
+
+document.getElementById(
+    "closeSettings"
+).onclick = () => {
+
+    currentColor =
+        chatColorInput.value;
+
+    localStorage.setItem(
+        "chatColor",
+        currentColor
+    );
+
+    settingsModal.classList.add(
+        "hidden"
+    );
+};
+
+settingsModal.addEventListener(
+    "click",
+    event => {
+
+        if (event.target === settingsModal) {
+
+            currentColor =
+                chatColorInput.value;
+
+            localStorage.setItem(
+                "chatColor",
+                currentColor
+            );
+
+            settingsModal.classList.add(
+                "hidden"
+            );
+        }
+    }
+);
 
 
 /* ============================== */
