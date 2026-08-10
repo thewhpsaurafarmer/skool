@@ -279,6 +279,11 @@ button:disabled {
     font-weight: bold;
 }
 
+.systemMessage {
+    color: white;
+    font-size: 13px;
+}
+
 #chatInputArea {
     display: flex;
     gap: 8px;
@@ -983,6 +988,29 @@ function startRoomBrowser() {
 
             const rooms = snapshot.val();
 
+            Object.entries(rooms)
+                .forEach(([code, room]) => {
+
+                    if (
+                        room &&
+                        countPlayers(room.players) === 0
+                    ) {
+
+                        remove(
+                            ref(
+                                db,
+                                "rooms/" + code
+                            )
+                        ).catch(error => {
+
+                            console.error(
+                                "empty room cleanup failed:",
+                                error
+                            );
+                        });
+                    }
+                });
+
             const availableRooms = Object.entries(
                 rooms
             )
@@ -993,6 +1021,10 @@ function startRoomBrowser() {
                 }
 
                 if (room.private) {
+                    return false;
+                }
+
+                if (countPlayers(room.players) === 0) {
                     return false;
                 }
 
@@ -1392,7 +1424,48 @@ async function claimName(
         }
     );
 
+    await postSystemMessage(
+        roomCode,
+        name.toLowerCase() +
+        " has joined"
+    );
+
     return true;
+}
+
+
+/* ============================== */
+/* SYSTEM MESSAGES                */
+/* ============================== */
+
+async function postSystemMessage(
+    roomCode,
+    text
+) {
+
+    try {
+
+        const messagesRef =
+            ref(
+                db,
+                "rooms/" +
+                roomCode +
+                "/messages"
+            );
+
+        await set(
+            push(messagesRef),
+            {
+                system: true,
+                text: text,
+                timestamp: serverTimestamp()
+            }
+        );
+
+    } catch (error) {
+
+        console.error("system message failed:", error);
+    }
 }
 
 
@@ -1887,6 +1960,21 @@ function listenToMessages() {
                                 "div"
                             );
 
+                        if (message.system) {
+
+                            wrapper.className =
+                                "message systemMessage";
+
+                            wrapper.textContent =
+                                message.text;
+
+                            chat.appendChild(
+                                wrapper
+                            );
+
+                            return;
+                        }
+
                         wrapper.className =
                             "message";
 
@@ -2133,7 +2221,7 @@ document.getElementById(
 
 
 async function leaveRoom(
-    deleteEntireRoom
+    shouldCleanupRoom
 ) {
 
     if (
@@ -2150,8 +2238,8 @@ async function leaveRoom(
     const roomCode =
         currentRoom;
 
-    const wasHost =
-        isHost;
+    const leavingName =
+        currentName;
 
     const normalized =
         normalizeName(
@@ -2176,56 +2264,83 @@ async function leaveRoom(
         messagesListener = null;
     }
 
-    try {
+    if (shouldCleanupRoom) {
 
-        if (disconnectPlayerRef) {
+        try {
 
-            await disconnectPlayerRef.cancel();
+            if (disconnectPlayerRef) {
 
-            disconnectPlayerRef = null;
-        }
+                await disconnectPlayerRef.cancel();
 
-        if (disconnectNameRef) {
+                disconnectPlayerRef = null;
+            }
 
-            await disconnectNameRef.cancel();
+            if (disconnectNameRef) {
 
-            disconnectNameRef = null;
-        }
+                await disconnectNameRef.cancel();
 
-        await remove(
-            ref(
-                db,
-                "rooms/" +
-                roomCode +
-                "/players/" +
-                currentUser.uid
-            )
-        );
-
-        await remove(
-            ref(
-                db,
-                "rooms/" +
-                roomCode +
-                "/names/" +
-                normalized
-            )
-        );
-
-        if (deleteEntireRoom && wasHost) {
+                disconnectNameRef = null;
+            }
 
             await remove(
                 ref(
                     db,
                     "rooms/" +
-                    roomCode
+                    roomCode +
+                    "/players/" +
+                    currentUser.uid
                 )
             );
+
+            await remove(
+                ref(
+                    db,
+                    "rooms/" +
+                    roomCode +
+                    "/names/" +
+                    normalized
+                )
+            );
+
+            const playersSnapshot =
+                await get(
+                    ref(
+                        db,
+                        "rooms/" +
+                        roomCode +
+                        "/players"
+                    )
+                );
+
+            const stillHasPlayers =
+                playersSnapshot.exists() &&
+                Object.keys(
+                    playersSnapshot.val()
+                ).length > 0;
+
+            if (!stillHasPlayers) {
+
+                await remove(
+                    ref(
+                        db,
+                        "rooms/" +
+                        roomCode
+                    )
+                );
+
+            } else {
+
+                await postSystemMessage(
+                    roomCode,
+                    leavingName.toLowerCase() +
+                    " has left"
+                );
+            }
+
+        } catch (error) {
+
+            console.error("leave room cleanup failed:", error);
         }
-
-    } catch (error) {
-
-        console.error("leave room cleanup failed:", error);
     }
 
     currentRoom = null;
