@@ -1716,10 +1716,9 @@ function listenToRoom() {
                 document.getElementById(
                     "roomStatus"
                 ).textContent =
-                    "open" +
-                    (room.private
-                        ? " · private"
-                        : "");
+                    room.private
+                        ? "private"
+                        : "";
             }
         );
 }
