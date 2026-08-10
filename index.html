@@ -294,11 +294,6 @@ button:disabled {
     width: 70px;
 }
 
-#hostControls {
-    padding: 10px;
-    border-top: 1px solid #333;
-}
-
 .noMessages {
     color: #666;
     text-align: center;
@@ -585,18 +580,6 @@ button:disabled {
 
                 </div>
 
-                <div id="hostControls" class="hidden">
-
-                    <button
-                        id="startButton"
-                        class="green"
-                        style="width:100%;"
-                    >
-                        start room
-                    </button>
-
-                </div>
-
             </div>
 
         </div>
@@ -649,7 +632,6 @@ import {
     ref,
     set,
     get,
-    update,
     remove,
     push,
     onValue,
@@ -1014,10 +996,6 @@ function startRoomBrowser() {
                     return false;
                 }
 
-                if (room.started) {
-                    return false;
-                }
-
                 const playerCount =
                     countPlayers(room.players);
 
@@ -1292,7 +1270,6 @@ document.getElementById(
                 host: currentUser.uid,
                 maxPlayers: maxPlayers,
                 private: isPrivate,
-                started: false,
                 createdAt: serverTimestamp()
             }
         );
@@ -1525,16 +1502,6 @@ async function joinRoom(
         const room =
             roomSnapshot.val();
 
-        if (room.started) {
-
-            setError(
-                "browseError",
-                "that room has already started."
-            );
-
-            return;
-        }
-
         const playersSnapshot =
             await get(
                 ref(
@@ -1694,27 +1661,6 @@ function enterRoom(
         </div>
     `;
 
-    if (isHost) {
-
-        document
-            .getElementById(
-                "hostControls"
-            )
-            .classList.remove(
-                "hidden"
-            );
-
-    } else {
-
-        document
-            .getElementById(
-                "hostControls"
-            )
-            .classList.add(
-                "hidden"
-            );
-    }
-
     showScreen("roomScreen");
 
     listenToRoom();
@@ -1770,33 +1716,10 @@ function listenToRoom() {
                 document.getElementById(
                     "roomStatus"
                 ).textContent =
-                    (room.started
-                        ? "started"
-                        : "waiting") +
+                    "open" +
                     (room.private
                         ? " · private"
                         : "");
-
-                if (room.started) {
-
-                    document
-                        .getElementById(
-                            "hostControls"
-                        )
-                        .classList.add(
-                            "hidden"
-                        );
-
-                } else if (isHost) {
-
-                    document
-                        .getElementById(
-                            "hostControls"
-                        )
-                        .classList.remove(
-                            "hidden"
-                        );
-                }
             }
         );
 }
@@ -2110,85 +2033,6 @@ document.getElementById(
         }
     }
 );
-
-
-/* ============================== */
-/* START ROOM                     */
-/* ============================== */
-
-document.getElementById(
-    "startButton"
-).onclick =
-    async () => {
-
-        if (
-            !currentRoom ||
-            !isHost
-        ) {
-            return;
-        }
-
-        try {
-
-            const roomSnapshot =
-                await get(
-                    ref(
-                        db,
-                        "rooms/" +
-                        currentRoom
-                    )
-                );
-
-            if (!roomSnapshot.exists()) {
-                return;
-            }
-
-            const room =
-                roomSnapshot.val();
-
-            if (
-                room.host !==
-                currentUser.uid
-            ) {
-                return;
-            }
-
-            const playerCount =
-                countPlayers(
-                    room.players
-                );
-
-            if (playerCount < 2) {
-
-                setError(
-                    "roomError",
-                    "at least 2 players are required to start."
-                );
-
-                return;
-            }
-
-            await update(
-                ref(
-                    db,
-                    "rooms/" +
-                    currentRoom
-                ),
-                {
-                    started: true
-                }
-            );
-
-        } catch (error) {
-
-            console.error("start room failed:", error);
-
-            setError(
-                "roomError",
-                "couldn't start the room (" + error.code + ")."
-            );
-        }
-    };
 
 
 /* ============================== */
