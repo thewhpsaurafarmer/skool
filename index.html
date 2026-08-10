@@ -1,0 +1,2146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rooms</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #101010;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+#app {
+    min-height: 100vh;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.screen {
+    width: 100%;
+    max-width: 900px;
+}
+
+.card {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 25px;
+}
+
+h1,
+h2,
+h3 {
+    margin-top: 0;
+}
+
+.field {
+    margin-bottom: 15px;
+}
+
+.field label {
+    display: block;
+    color: #aaa;
+    margin-bottom: 6px;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #444;
+    border-radius: 7px;
+    background: #111;
+    color: white;
+    outline: none;
+}
+
+input:focus,
+select:focus {
+    border-color: #777;
+}
+
+button {
+    padding: 11px 16px;
+    border: 0;
+    border-radius: 7px;
+    background: #eee;
+    color: #111;
+    font-weight: bold;
+}
+
+button:hover {
+    opacity: 0.85;
+}
+
+button.green {
+    background: #3cab5c;
+    color: white;
+}
+
+button.red {
+    background: #d43b3b;
+    color: white;
+}
+
+button.dark {
+    background: #333;
+    color: white;
+}
+
+button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.row {
+    display: flex;
+    gap: 10px;
+}
+
+.row > * {
+    flex: 1;
+}
+
+.error {
+    color: #ff6666;
+    margin-top: 12px;
+}
+
+.success {
+    color: #65d883;
+    margin-top: 12px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.roomList {
+    margin-top: 20px;
+}
+
+.roomListHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.roomListHeader span {
+    color: #888;
+    font-size: 13px;
+}
+
+.room {
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.roomInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.roomName {
+    font-weight: bold;
+    font-size: 16px;
+    word-break: break-word;
+}
+
+.roomDetails {
+    color: #999;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.roomCodeSmall {
+    color: #666;
+    font-family: monospace;
+    margin-top: 4px;
+}
+
+.emptyRooms {
+    color: #777;
+    text-align: center;
+    padding: 30px 10px;
+    border: 1px dashed #333;
+    border-radius: 8px;
+}
+
+.roomTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.roomCode {
+    font-family: monospace;
+    font-size: 22px;
+    letter-spacing: 3px;
+}
+
+.roomStatus {
+    color: #999;
+    font-size: 13px;
+}
+
+#roomLayout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 15px;
+}
+
+.panel {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.panelHeader {
+    padding: 13px;
+    border-bottom: 1px solid #333;
+    font-weight: bold;
+}
+
+#players {
+    padding: 8px;
+}
+
+.player {
+    background: #222;
+    border-radius: 6px;
+    padding: 9px;
+    margin-bottom: 5px;
+    word-break: break-word;
+}
+
+.player.host {
+    border-left: 3px solid #65d883;
+}
+
+.playerYou {
+    color: #65d883;
+    font-size: 11px;
+    margin-left: 5px;
+}
+
+#chat {
+    height: 430px;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.message {
+    margin-bottom: 9px;
+    word-break: break-word;
+}
+
+.messageName {
+    font-weight: bold;
+}
+
+#chatInputArea {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid #333;
+}
+
+#chatInput {
+    flex: 1;
+}
+
+#chatInputArea button {
+    width: 70px;
+}
+
+#hostControls {
+    padding: 10px;
+    border-top: 1px solid #333;
+}
+
+.noMessages {
+    color: #666;
+    text-align: center;
+    margin-top: 40px;
+}
+
+@media (max-width: 650px) {
+    #roomLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .room {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .room button {
+        width: 100%;
+    }
+
+    .row {
+        flex-direction: column;
+    }
+
+    #chat {
+        height: 350px;
+    }
+
+    .roomTop {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div id="app">
+
+    <div id="homeScreen" class="screen">
+        <div class="card">
+
+            <h1>rooms</h1>
+
+            <div class="field">
+                <label>account name</label>
+                <input id="homeName" maxlength="20" placeholder="your name">
+            </div>
+
+            <div class="row">
+                <button id="createButton" class="green">
+                    create room
+                </button>
+
+                <button id="browseButton" class="dark">
+                    browse rooms
+                </button>
+            </div>
+
+            <div id="homeError" class="error"></div>
+
+        </div>
+    </div>
+
+
+    <div id="createScreen" class="screen hidden">
+
+        <div class="card">
+
+            <h2>create room</h2>
+
+            <div class="field">
+                <label>room name</label>
+                <input id="createRoomName" maxlength="40" placeholder="my room">
+            </div>
+
+            <div class="field">
+                <label>account name</label>
+                <input id="createName" maxlength="20" placeholder="your name">
+            </div>
+
+            <div class="field">
+                <label>maximum players</label>
+
+                <select id="maxPlayers">
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                    <option value="25">25</option>
+                    <option value="30">30</option>
+                    <option value="40">40</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+
+            <div class="row">
+                <button id="createRoomButton" class="green">
+                    create
+                </button>
+
+                <button id="backFromCreate" class="dark">
+                    back
+                </button>
+            </div>
+
+            <div id="createError" class="error"></div>
+
+        </div>
+
+    </div>
+
+
+    <div id="browseScreen" class="screen hidden">
+
+        <div class="card">
+
+            <h2>browse rooms</h2>
+
+            <div class="field">
+                <label>room code (optional)</label>
+
+                <input
+                    id="roomCodeInput"
+                    maxlength="6"
+                    placeholder="leave blank to browse"
+                    style="text-transform:uppercase"
+                >
+            </div>
+
+            <div class="field">
+                <label>account name</label>
+                <input id="browseName" maxlength="20" placeholder="your name">
+            </div>
+
+            <div class="row">
+                <button id="joinCodeButton" class="green">
+                    join code
+                </button>
+
+                <button id="backFromBrowse" class="dark">
+                    back
+                </button>
+            </div>
+
+            <div id="browseError" class="error"></div>
+
+            <div class="roomList">
+
+                <div class="roomListHeader">
+                    <strong>available rooms</strong>
+                    <span id="roomCount">0 rooms</span>
+                </div>
+
+                <div id="roomList"></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div id="roomScreen" class="screen hidden">
+
+        <div class="roomTop">
+
+            <div>
+                <div id="displayRoomName">
+                    room
+                </div>
+
+                <div class="roomStatus">
+                    code:
+                    <span id="displayRoomCode" class="roomCode">
+                        ------
+                    </span>
+                </div>
+
+                <div id="roomStatus" class="roomStatus">
+                    waiting
+                </div>
+            </div>
+
+            <div>
+                <button id="leaveButton" class="red">
+                    leave
+                </button>
+            </div>
+
+        </div>
+
+        <div id="roomError" class="error"></div>
+
+        <div id="roomLayout">
+
+            <div class="panel">
+
+                <div class="panelHeader">
+                    players
+                    <span id="playerCount">
+                        0 / 0
+                    </span>
+                </div>
+
+                <div id="players"></div>
+
+            </div>
+
+
+            <div class="panel">
+
+                <div class="panelHeader">
+                    chat
+                </div>
+
+                <div id="chat"></div>
+
+                <div id="chatInputArea">
+
+                    <input
+                        id="chatInput"
+                        maxlength="300"
+                        placeholder="type a message..."
+                    >
+
+                    <button id="sendButton">
+                        send
+                    </button>
+
+                </div>
+
+                <div id="hostControls" class="hidden">
+
+                    <button
+                        id="startButton"
+                        class="green"
+                        style="width:100%;"
+                    >
+                        start room
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script type="module">
+
+import {
+    initializeApp
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+
+import {
+    getAuth,
+    signInAnonymously,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+import {
+    getDatabase,
+    ref,
+    set,
+    get,
+    update,
+    remove,
+    push,
+    onValue,
+    onDisconnect,
+    runTransaction,
+    serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+
+
+/* ============================== */
+/* FIREBASE CONFIG                */
+/* ============================== */
+
+const firebaseConfig = {
+apiKey: "AIzaSyDf60lZZGaSdXmrqI9MoLRgV3ulYtD4J5I",
+authDomain: "school-chat-d9a65.firebaseapp.com",
+databaseURL: "https://school-chat-d9a65-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId: "school-chat-d9a65",
+storageBucket: "school-chat-d9a65.firebasestorage.app",
+messagingSenderId: "215900413514",
+appId: "1:215900413514:web:d4bfa83bc8bb66a3c310b3",
+measurementId: "G-7K9VS92EPC"
+};
+
+
+/* ============================== */
+/* FIREBASE                       */
+/* ============================== */
+
+const app = initializeApp(firebaseConfig);
+
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+let currentUser = null;
+
+let currentRoom = null;
+let currentName = null;
+let currentRoomName = null;
+
+let isHost = false;
+
+let roomListener = null;
+let playersListener = null;
+let messagesListener = null;
+let browserListener = null;
+
+let disconnectPlayerRef = null;
+let disconnectNameRef = null;
+
+
+/* ============================== */
+/* SETTINGS                       */
+/* ============================== */
+
+const bannedWords = [
+    "fuck",
+    "fucker",
+    "fucking",
+    "shit",
+    "bitch",
+    "bastard",
+    "dick",
+    "dickhead",
+    "cunt",
+    "asshole",
+    "nigger",
+    "nigga",
+    "faggot",
+    "fag",
+    "retard"
+];
+
+
+/* ============================== */
+/* HELPERS                        */
+/* ============================== */
+
+function showScreen(id) {
+
+    document
+        .querySelectorAll(".screen")
+        .forEach(screen => {
+            screen.classList.add("hidden");
+        });
+
+    document
+        .getElementById(id)
+        .classList.remove("hidden");
+}
+
+
+function cleanName(name) {
+
+    return name
+        .trim()
+        .replace(/\s+/g, " ")
+        .slice(0, 20);
+}
+
+
+function cleanRoomName(name) {
+
+    return name
+        .trim()
+        .replace(/\s+/g, " ")
+        .slice(0, 40);
+}
+
+
+function normalizeName(name) {
+
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+}
+
+
+function validName(name) {
+
+    if (!name) {
+        return false;
+    }
+
+    if (name.length < 1 || name.length > 20) {
+        return false;
+    }
+
+    return /^[a-zA-Z0-9 _-]+$/.test(name);
+}
+
+
+function validRoomName(name) {
+
+    if (!name) {
+        return false;
+    }
+
+    if (name.length < 1 || name.length > 40) {
+        return false;
+    }
+
+    return /^[a-zA-Z0-9 _!?.(),'’-]+$/.test(name);
+}
+
+
+function generateRoomCode() {
+
+    const characters =
+        "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    let code = "";
+
+    for (let i = 0; i < 6; i++) {
+
+        code += characters[
+            Math.floor(
+                Math.random() * characters.length
+            )
+        ];
+    }
+
+    return code;
+}
+
+
+function censorMessage(message) {
+
+    let result = message;
+
+    for (const word of bannedWords) {
+
+        const escaped = word.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+        );
+
+        const regex = new RegExp(
+            "\\b" + escaped + "\\b",
+            "gi"
+        );
+
+        result = result.replace(
+            regex,
+            match => "*".repeat(match.length)
+        );
+    }
+
+    return result;
+}
+
+
+function countPlayers(players) {
+
+    if (!players) {
+        return 0;
+    }
+
+    return Object.keys(players).length;
+}
+
+
+function clearErrors() {
+
+    document
+        .querySelectorAll(".error")
+        .forEach(element => {
+            element.textContent = "";
+        });
+}
+
+
+function setError(id, text) {
+
+    document.getElementById(id).textContent = text;
+}
+
+
+/* ============================== */
+/* AUTH                           */
+/* ============================== */
+
+signInAnonymously(auth)
+    .catch(error => {
+        console.error(error);
+    });
+
+
+onAuthStateChanged(auth, user => {
+
+    currentUser = user;
+});
+
+
+/* ============================== */
+/* HOME                           */
+/* ============================== */
+
+document.getElementById("createButton").onclick = () => {
+
+    clearErrors();
+
+    const name = cleanName(
+        document.getElementById("homeName").value
+    );
+
+    if (!validName(name)) {
+
+        setError(
+            "homeError",
+            "enter a valid account name."
+        );
+
+        return;
+    }
+
+    document.getElementById("createName").value =
+        name;
+
+    showScreen("createScreen");
+};
+
+
+document.getElementById("browseButton").onclick = () => {
+
+    clearErrors();
+
+    const name = cleanName(
+        document.getElementById("homeName").value
+    );
+
+    document.getElementById("browseName").value =
+        name;
+
+    showScreen("browseScreen");
+
+    startRoomBrowser();
+};
+
+
+/* ============================== */
+/* BACK                           */
+/* ============================== */
+
+document.getElementById("backFromCreate").onclick = () => {
+
+    clearErrors();
+
+    showScreen("homeScreen");
+};
+
+
+document.getElementById("backFromBrowse").onclick = () => {
+
+    clearErrors();
+
+    stopRoomBrowser();
+
+    showScreen("homeScreen");
+};
+
+
+/* ============================== */
+/* ROOM BROWSER                   */
+/* ============================== */
+
+function startRoomBrowser() {
+
+    stopRoomBrowser();
+
+    const roomsRef = ref(db, "rooms");
+
+    browserListener = onValue(
+        roomsRef,
+        snapshot => {
+
+            const roomList =
+                document.getElementById("roomList");
+
+            roomList.innerHTML = "";
+
+            if (!snapshot.exists()) {
+
+                document.getElementById(
+                    "roomCount"
+                ).textContent = "0 rooms";
+
+                roomList.innerHTML = `
+                    <div class="emptyRooms">
+                        no available rooms
+                    </div>
+                `;
+
+                return;
+            }
+
+            const rooms = snapshot.val();
+
+            const availableRooms = Object.entries(
+                rooms
+            )
+            .filter(([code, room]) => {
+
+                if (!room) {
+                    return false;
+                }
+
+                if (room.started) {
+                    return false;
+                }
+
+                const playerCount =
+                    countPlayers(room.players);
+
+                if (playerCount >= room.maxPlayers) {
+                    return false;
+                }
+
+                return true;
+            });
+
+            document.getElementById(
+                "roomCount"
+            ).textContent =
+                `${availableRooms.length} ${
+                    availableRooms.length === 1
+                        ? "room"
+                        : "rooms"
+                }`;
+
+            if (availableRooms.length === 0) {
+
+                roomList.innerHTML = `
+                    <div class="emptyRooms">
+                        no available rooms
+                    </div>
+                `;
+
+                return;
+            }
+
+            availableRooms
+                .sort((a, b) => {
+
+                    const aTime =
+                        a[1].createdAt || 0;
+
+                    const bTime =
+                        b[1].createdAt || 0;
+
+                    return bTime - aTime;
+                })
+                .forEach(([code, room]) => {
+
+                    const playerCount =
+                        countPlayers(room.players);
+
+                    const roomElement =
+                        document.createElement("div");
+
+                    roomElement.className = "room";
+
+                    const info =
+                        document.createElement("div");
+
+                    info.className = "roomInfo";
+
+                    const name =
+                        document.createElement("div");
+
+                    name.className = "roomName";
+
+                    name.textContent =
+                        room.name || "unnamed room";
+
+                    const details =
+                        document.createElement("div");
+
+                    details.className =
+                        "roomDetails";
+
+                    details.textContent =
+                        `${playerCount} / ${room.maxPlayers} players`;
+
+                    const codeElement =
+                        document.createElement("div");
+
+                    codeElement.className =
+                        "roomCodeSmall";
+
+                    codeElement.textContent =
+                        code;
+
+                    info.appendChild(name);
+                    info.appendChild(details);
+                    info.appendChild(codeElement);
+
+                    const joinButton =
+                        document.createElement("button");
+
+                    joinButton.className = "green";
+
+                    joinButton.textContent = "join";
+
+                    joinButton.onclick = () => {
+
+                        const playerName =
+                            cleanName(
+                                document
+                                    .getElementById(
+                                        "browseName"
+                                    )
+                                    .value
+                            );
+
+                        if (!validName(playerName)) {
+
+                            setError(
+                                "browseError",
+                                "enter a valid account name."
+                            );
+
+                            return;
+                        }
+
+                        joinRoom(
+                            code,
+                            playerName
+                        );
+                    };
+
+                    roomElement.appendChild(info);
+                    roomElement.appendChild(joinButton);
+
+                    roomList.appendChild(roomElement);
+                });
+        }
+    );
+}
+
+
+function stopRoomBrowser() {
+
+    if (browserListener) {
+
+        browserListener();
+
+        browserListener = null;
+    }
+}
+
+
+/* ============================== */
+/* CREATE ROOM                    */
+/* ============================== */
+
+document.getElementById(
+    "createRoomButton"
+).onclick = async () => {
+
+    clearErrors();
+
+    if (!currentUser) {
+
+        setError(
+            "createError",
+            "connecting to server..."
+        );
+
+        return;
+    }
+
+    const roomName =
+        cleanRoomName(
+            document.getElementById(
+                "createRoomName"
+            ).value
+        );
+
+    const name =
+        cleanName(
+            document.getElementById(
+                "createName"
+            ).value
+        );
+
+    const maxPlayers =
+        Number(
+            document.getElementById(
+                "maxPlayers"
+            ).value
+        );
+
+    if (!validRoomName(roomName)) {
+
+        setError(
+            "createError",
+            "enter a valid room name."
+        );
+
+        return;
+    }
+
+    if (!validName(name)) {
+
+        setError(
+            "createError",
+            "enter a valid account name."
+        );
+
+        return;
+    }
+
+    if (maxPlayers < 2 || maxPlayers > 50) {
+
+        setError(
+            "createError",
+            "maximum players must be between 2 and 50."
+        );
+
+        return;
+    }
+
+    let roomCode = null;
+
+    for (let i = 0; i < 10; i++) {
+
+        const generated =
+            generateRoomCode();
+
+        const roomRef =
+            ref(
+                db,
+                "rooms/" + generated
+            );
+
+        const snapshot =
+            await get(roomRef);
+
+        if (!snapshot.exists()) {
+
+            roomCode = generated;
+
+            break;
+        }
+    }
+
+    if (!roomCode) {
+
+        setError(
+            "createError",
+            "couldn't generate a room code."
+        );
+
+        return;
+    }
+
+    const roomRef =
+        ref(
+            db,
+            "rooms/" + roomCode
+        );
+
+    await set(
+        roomRef,
+        {
+            name: roomName,
+            host: currentUser.uid,
+            maxPlayers: maxPlayers,
+            started: false,
+            createdAt: serverTimestamp()
+        }
+    );
+
+    const claimed =
+        await claimName(
+            roomCode,
+            name
+        );
+
+    if (!claimed) {
+
+        await remove(roomRef);
+
+        setError(
+            "createError",
+            "couldn't create the room."
+        );
+
+        return;
+    }
+
+    currentName = name;
+    currentRoomName = roomName;
+    currentRoom = roomCode;
+    isHost = true;
+
+    await setupDisconnect();
+
+    enterRoom(
+        roomCode,
+        name,
+        roomName,
+        true
+    );
+};
+
+
+/* ============================== */
+/* CLAIM NAME                     */
+/* ============================== */
+
+async function claimName(
+    roomCode,
+    name
+) {
+
+    const normalized =
+        normalizeName(name);
+
+    if (!normalized) {
+        return false;
+    }
+
+    const nameRef =
+        ref(
+            db,
+            "rooms/" +
+            roomCode +
+            "/names/" +
+            normalized
+        );
+
+    const result =
+        await runTransaction(
+            nameRef,
+            existing => {
+
+                if (existing === null) {
+                    return currentUser.uid;
+                }
+
+                if (
+                    existing ===
+                    currentUser.uid
+                ) {
+                    return existing;
+                }
+
+                return;
+            }
+        );
+
+    if (!result.committed) {
+        return false;
+    }
+
+    const playerRef =
+        ref(
+            db,
+            "rooms/" +
+            roomCode +
+            "/players/" +
+            currentUser.uid
+        );
+
+    await set(
+        playerRef,
+        {
+            name: name,
+            joinedAt: serverTimestamp()
+        }
+    );
+
+    return true;
+}
+
+
+/* ============================== */
+/* JOIN ROOM                      */
+/* ============================== */
+
+document.getElementById(
+    "joinCodeButton"
+).onclick = async () => {
+
+    clearErrors();
+
+    const code =
+        document
+            .getElementById(
+                "roomCodeInput"
+            )
+            .value
+            .trim()
+            .toUpperCase();
+
+    const name =
+        cleanName(
+            document
+                .getElementById(
+                    "browseName"
+                )
+                .value
+        );
+
+    if (!code) {
+
+        setError(
+            "browseError",
+            "enter a room code or choose a room below."
+        );
+
+        return;
+    }
+
+    if (!/^[A-Z0-9]{6}$/.test(code)) {
+
+        setError(
+            "browseError",
+            "room codes are 6 characters."
+        );
+
+        return;
+    }
+
+    if (!validName(name)) {
+
+        setError(
+            "browseError",
+            "enter a valid account name."
+        );
+
+        return;
+    }
+
+    await joinRoom(
+        code,
+        name
+    );
+};
+
+
+async function joinRoom(
+    roomCode,
+    name
+) {
+
+    clearErrors();
+
+    if (!currentUser) {
+
+        setError(
+            "browseError",
+            "connecting to server..."
+        );
+
+        return;
+    }
+
+    const roomRef =
+        ref(
+            db,
+            "rooms/" + roomCode
+        );
+
+    const roomSnapshot =
+        await get(roomRef);
+
+    if (!roomSnapshot.exists()) {
+
+        setError(
+            "browseError",
+            "that room doesn't exist."
+        );
+
+        return;
+    }
+
+    const room =
+        roomSnapshot.val();
+
+    if (room.started) {
+
+        setError(
+            "browseError",
+            "that room has already started."
+        );
+
+        return;
+    }
+
+    const playersSnapshot =
+        await get(
+            ref(
+                db,
+                "rooms/" +
+                roomCode +
+                "/players"
+            )
+        );
+
+    const playerCount =
+        playersSnapshot.exists()
+            ? Object.keys(
+                playersSnapshot.val()
+            ).length
+            : 0;
+
+    if (
+        playerCount >=
+        room.maxPlayers
+    ) {
+
+        setError(
+            "browseError",
+            "that room is full."
+        );
+
+        return;
+    }
+
+    const claimed =
+        await claimName(
+            roomCode,
+            name
+        );
+
+    if (!claimed) {
+
+        setError(
+            "browseError",
+            "that account name is already being used in this room."
+        );
+
+        return;
+    }
+
+    currentRoom = roomCode;
+    currentName = name;
+    currentRoomName =
+        room.name || "room";
+    isHost = false;
+
+    await setupDisconnect();
+
+    stopRoomBrowser();
+
+    enterRoom(
+        roomCode,
+        name,
+        currentRoomName,
+        false
+    );
+}
+
+
+/* ============================== */
+/* DISCONNECT                     */
+/* ============================== */
+
+async function setupDisconnect() {
+
+    if (
+        !currentRoom ||
+        !currentUser ||
+        !currentName
+    ) {
+        return;
+    }
+
+    const playerRef =
+        ref(
+            db,
+            "rooms/" +
+            currentRoom +
+            "/players/" +
+            currentUser.uid
+        );
+
+    const normalized =
+        normalizeName(currentName);
+
+    const nameRef =
+        ref(
+            db,
+            "rooms/" +
+            currentRoom +
+            "/names/" +
+            normalized
+        );
+
+    disconnectPlayerRef =
+        onDisconnect(
+            playerRef
+        );
+
+    disconnectNameRef =
+        onDisconnect(
+            nameRef
+        );
+
+    await disconnectPlayerRef.remove();
+    await disconnectNameRef.remove();
+}
+
+
+/* ============================== */
+/* ENTER ROOM                     */
+/* ============================== */
+
+function enterRoom(
+    roomCode,
+    name,
+    roomName,
+    host
+) {
+
+    currentRoom = roomCode;
+    currentName = name;
+    currentRoomName = roomName;
+    isHost = host;
+
+    document.getElementById(
+        "displayRoomName"
+    ).textContent =
+        roomName;
+
+    document.getElementById(
+        "displayRoomCode"
+    ).textContent =
+        roomCode;
+
+    document.getElementById(
+        "chat"
+    ).innerHTML = `
+        <div class="noMessages">
+            no messages yet
+        </div>
+    `;
+
+    if (isHost) {
+
+        document
+            .getElementById(
+                "hostControls"
+            )
+            .classList.remove(
+                "hidden"
+            );
+
+    } else {
+
+        document
+            .getElementById(
+                "hostControls"
+            )
+            .classList.add(
+                "hidden"
+            );
+    }
+
+    showScreen("roomScreen");
+
+    listenToRoom();
+    listenToPlayers();
+    listenToMessages();
+}
+
+
+/* ============================== */
+/* ROOM LISTENER                  */
+/* ============================== */
+
+function listenToRoom() {
+
+    if (roomListener) {
+        roomListener();
+    }
+
+    const roomRef =
+        ref(
+            db,
+            "rooms/" +
+            currentRoom
+        );
+
+    roomListener =
+        onValue(
+            roomRef,
+            snapshot => {
+
+                if (!snapshot.exists()) {
+
+                    leaveRoom(
+                        false
+                    );
+
+                    return;
+                }
+
+                const room =
+                    snapshot.val();
+
+                const players =
+                    countPlayers(
+                        room.players
+                    );
+
+                document.getElementById(
+                    "playerCount"
+                ).textContent =
+                    `${players} / ${room.maxPlayers}`;
+
+                document.getElementById(
+                    "roomStatus"
+                ).textContent =
+                    room.started
+                        ? "started"
+                        : "waiting";
+
+                if (room.started) {
+
+                    document
+                        .getElementById(
+                            "hostControls"
+                        )
+                        .classList.add(
+                            "hidden"
+                        );
+
+                } else if (isHost) {
+
+                    document
+                        .getElementById(
+                            "hostControls"
+                        )
+                        .classList.remove(
+                            "hidden"
+                        );
+                }
+            }
+        );
+}
+
+
+/* ============================== */
+/* PLAYER LIST                    */
+/* ============================== */
+
+function listenToPlayers() {
+
+    if (playersListener) {
+        playersListener();
+    }
+
+    const playersRef =
+        ref(
+            db,
+            "rooms/" +
+            currentRoom +
+            "/players"
+        );
+
+    playersListener =
+        onValue(
+            playersRef,
+            snapshot => {
+
+                const playersElement =
+                    document.getElementById(
+                        "players"
+                    );
+
+                playersElement.innerHTML = "";
+
+                if (!snapshot.exists()) {
+                    return;
+                }
+
+                const players =
+                    snapshot.val();
+
+                Object.entries(
+                    players
+                ).forEach(
+                    ([uid, player]) => {
+
+                        const div =
+                            document.createElement(
+                                "div"
+                            );
+
+                        div.className =
+                            "player";
+
+                        if (
+                            uid ===
+                            currentUser.uid
+                        ) {
+                            div.classList.add(
+                                "host"
+                            );
+                        }
+
+                        const name =
+                            document.createElement(
+                                "span"
+                            );
+
+                        name.textContent =
+                            player.name;
+
+                        div.appendChild(
+                            name
+                        );
+
+                        if (
+                            uid ===
+                            currentUser.uid
+                        ) {
+
+                            const you =
+                                document.createElement(
+                                    "span"
+                                );
+
+                            you.className =
+                                "playerYou";
+
+                            you.textContent =
+                                "(you)";
+
+                            div.appendChild(
+                                you
+                            );
+                        }
+
+                        playersElement
+                            .appendChild(
+                                div
+                            );
+                    }
+                );
+            }
+        );
+}
+
+
+/* ============================== */
+/* CHAT                           */
+/* ============================== */
+
+function listenToMessages() {
+
+    if (messagesListener) {
+        messagesListener();
+    }
+
+    const messagesRef =
+        ref(
+            db,
+            "rooms/" +
+            currentRoom +
+            "/messages"
+        );
+
+    messagesListener =
+        onValue(
+            messagesRef,
+            snapshot => {
+
+                const chat =
+                    document.getElementById(
+                        "chat"
+                    );
+
+                chat.innerHTML = "";
+
+                if (!snapshot.exists()) {
+
+                    chat.innerHTML = `
+                        <div class="noMessages">
+                            no messages yet
+                        </div>
+                    `;
+
+                    return;
+                }
+
+                const messages =
+                    Object.values(
+                        snapshot.val()
+                    );
+
+                messages.sort(
+                    (a, b) =>
+                        (a.timestamp || 0) -
+                        (b.timestamp || 0)
+                );
+
+                messages.forEach(
+                    message => {
+
+                        const wrapper =
+                            document.createElement(
+                                "div"
+                            );
+
+                        wrapper.className =
+                            "message";
+
+                        const messageName =
+                            document.createElement(
+                                "span"
+                            );
+
+                        messageName.className =
+                            "messageName";
+
+                        messageName.textContent =
+                            message.name + ":";
+
+                        const messageText =
+                            document.createElement(
+                                "span"
+                            );
+
+                        messageText.textContent =
+                            " " +
+                            message.text;
+
+                        wrapper.appendChild(
+                            messageName
+                        );
+
+                        wrapper.appendChild(
+                            messageText
+                        );
+
+                        chat.appendChild(
+                            wrapper
+                        );
+                    }
+                );
+
+                chat.scrollTop =
+                    chat.scrollHeight;
+            }
+        );
+}
+
+
+/* ============================== */
+/* SEND MESSAGE                   */
+/* ============================== */
+
+async function sendMessage() {
+
+    if (
+        !currentRoom ||
+        !currentUser
+    ) {
+        return;
+    }
+
+    let message =
+        document
+            .getElementById(
+                "chatInput"
+            )
+            .value
+            .trim();
+
+    if (!message) {
+        return;
+    }
+
+    message =
+        message.slice(
+            0,
+            300
+        );
+
+    message =
+        censorMessage(
+            message
+        );
+
+    const messagesRef =
+        ref(
+            db,
+            "rooms/" +
+            currentRoom +
+            "/messages"
+        );
+
+    const messageRef =
+        push(messagesRef);
+
+    await set(
+        messageRef,
+        {
+            uid: currentUser.uid,
+            name: currentName,
+            text: message,
+            timestamp: serverTimestamp()
+        }
+    );
+
+    document.getElementById(
+        "chatInput"
+    ).value = "";
+}
+
+
+document.getElementById(
+    "sendButton"
+).onclick =
+    sendMessage;
+
+
+document.getElementById(
+    "chatInput"
+).addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key ===
+            "Enter"
+        ) {
+            sendMessage();
+        }
+    }
+);
+
+
+/* ============================== */
+/* START ROOM                     */
+/* ============================== */
+
+document.getElementById(
+    "startButton"
+).onclick =
+    async () => {
+
+        if (
+            !currentRoom ||
+            !isHost
+        ) {
+            return;
+        }
+
+        const roomSnapshot =
+            await get(
+                ref(
+                    db,
+                    "rooms/" +
+                    currentRoom
+                )
+            );
+
+        if (!roomSnapshot.exists()) {
+            return;
+        }
+
+        const room =
+            roomSnapshot.val();
+
+        if (
+            room.host !==
+            currentUser.uid
+        ) {
+            return;
+        }
+
+        const playerCount =
+            countPlayers(
+                room.players
+            );
+
+        if (playerCount < 2) {
+
+            setError(
+                "roomError",
+                "at least 2 players are required to start."
+            );
+
+            return;
+        }
+
+        await update(
+            ref(
+                db,
+                "rooms/" +
+                currentRoom
+            ),
+            {
+                started: true
+            }
+        );
+    };
+
+
+/* ============================== */
+/* LEAVE ROOM                     */
+/* ============================== */
+
+document.getElementById(
+    "leaveButton"
+).onclick =
+    () => {
+
+        leaveRoom(
+            true
+        );
+    };
+
+
+async function leaveRoom(
+    deleteEntireRoom
+) {
+
+    if (
+        !currentRoom ||
+        !currentUser
+    ) {
+        showScreen(
+            "homeScreen"
+        );
+
+        return;
+    }
+
+    const roomCode =
+        currentRoom;
+
+    const wasHost =
+        isHost;
+
+    const normalized =
+        normalizeName(
+            currentName
+        );
+
+    if (roomListener) {
+
+        roomListener();
+        roomListener = null;
+    }
+
+    if (playersListener) {
+
+        playersListener();
+        playersListener = null;
+    }
+
+    if (messagesListener) {
+
+        messagesListener();
+        messagesListener = null;
+    }
+
+    if (disconnectPlayerRef) {
+
+        await disconnectPlayerRef.cancel();
+
+        disconnectPlayerRef = null;
+    }
+
+    if (disconnectNameRef) {
+
+        await disconnectNameRef.cancel();
+
+        disconnectNameRef = null;
+    }
+
+    await remove(
+        ref(
+            db,
+            "rooms/" +
+            roomCode +
+            "/players/" +
+            currentUser.uid
+        )
+    );
+
+    await remove(
+        ref(
+            db,
+            "rooms/" +
+            roomCode +
+            "/names/" +
+            normalized
+        )
+    );
+
+    if (deleteEntireRoom && wasHost) {
+
+        await remove(
+            ref(
+                db,
+                "rooms/" +
+                roomCode
+            )
+        );
+    }
+
+    currentRoom = null;
+    currentName = null;
+    currentRoomName = null;
+    isHost = false;
+
+    document.getElementById(
+        "chat"
+    ).innerHTML = "";
+
+    document.getElementById(
+        "players"
+    ).innerHTML = "";
+
+    showScreen(
+        "homeScreen"
+    );
+}
+
+
+/* ============================== */
+/* INITIAL                        */
+/* ============================== */
+
+showScreen(
+    "homeScreen"
+);
+
+</script>
+
+</body>
+</html>
