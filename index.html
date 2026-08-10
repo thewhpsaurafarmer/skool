@@ -788,13 +788,22 @@ function setError(id, text) {
 
 signInAnonymously(auth)
     .catch(error => {
-        console.error(error);
+        console.error("sign-in failed:", error);
+
+        setError(
+            "homeError",
+            "couldn't connect (" + error.code + "). check your internet connection and try reloading."
+        );
     });
 
 
 onAuthStateChanged(auth, user => {
 
     currentUser = user;
+
+    if (user) {
+        clearErrors();
+    }
 });
 
 
@@ -1127,88 +1136,116 @@ document.getElementById(
         return;
     }
 
-    let roomCode = null;
+    const button =
+        document.getElementById(
+            "createRoomButton"
+        );
 
-    for (let i = 0; i < 10; i++) {
+    button.disabled = true;
+    button.textContent = "creating...";
 
-        const generated =
-            generateRoomCode();
+    try {
+
+        let roomCode = null;
+
+        for (let i = 0; i < 10; i++) {
+
+            const generated =
+                generateRoomCode();
+
+            const roomRef =
+                ref(
+                    db,
+                    "rooms/" + generated
+                );
+
+            const snapshot =
+                await get(roomRef);
+
+            if (!snapshot.exists()) {
+
+                roomCode = generated;
+
+                break;
+            }
+        }
+
+        if (!roomCode) {
+
+            setError(
+                "createError",
+                "couldn't generate a room code."
+            );
+
+            return;
+        }
 
         const roomRef =
             ref(
                 db,
-                "rooms/" + generated
+                "rooms/" + roomCode
             );
 
-        const snapshot =
-            await get(roomRef);
-
-        if (!snapshot.exists()) {
-
-            roomCode = generated;
-
-            break;
-        }
-    }
-
-    if (!roomCode) {
-
-        setError(
-            "createError",
-            "couldn't generate a room code."
+        await set(
+            roomRef,
+            {
+                name: roomName,
+                host: currentUser.uid,
+                maxPlayers: maxPlayers,
+                started: false,
+                createdAt: serverTimestamp()
+            }
         );
 
-        return;
-    }
+        const claimed =
+            await claimName(
+                roomCode,
+                name
+            );
 
-    const roomRef =
-        ref(
-            db,
-            "rooms/" + roomCode
-        );
+        if (!claimed) {
 
-    await set(
-        roomRef,
-        {
-            name: roomName,
-            host: currentUser.uid,
-            maxPlayers: maxPlayers,
-            started: false,
-            createdAt: serverTimestamp()
+            await remove(roomRef);
+
+            setError(
+                "createError",
+                "couldn't create the room."
+            );
+
+            return;
         }
-    );
 
-    const claimed =
-        await claimName(
+        currentName = name;
+        currentRoomName = roomName;
+        currentRoom = roomCode;
+        isHost = true;
+
+        await setupDisconnect();
+
+        enterRoom(
             roomCode,
-            name
+            name,
+            roomName,
+            true
         );
 
-    if (!claimed) {
+    } catch (error) {
 
-        await remove(roomRef);
+        console.error("create room failed:", error);
 
         setError(
             "createError",
-            "couldn't create the room."
+            "couldn't create the room (" + error.code + "). " +
+            (error.code === "PERMISSION_DENIED"
+                ? "your database rules are blocking writes."
+                : "check your connection and try again.")
         );
 
-        return;
+    } finally {
+
+        button.disabled = false;
+        button.textContent = "create";
     }
-
-    currentName = name;
-    currentRoomName = roomName;
-    currentRoom = roomCode;
-    isHost = true;
-
-    await setupDisconnect();
-
-    enterRoom(
-        roomCode,
-        name,
-        roomName,
-        true
-    );
 };
 
 
@@ -1364,100 +1401,112 @@ async function joinRoom(
         return;
     }
 
-    const roomRef =
-        ref(
-            db,
-            "rooms/" + roomCode
-        );
+    try {
 
-    const roomSnapshot =
-        await get(roomRef);
-
-    if (!roomSnapshot.exists()) {
-
-        setError(
-            "browseError",
-            "that room doesn't exist."
-        );
-
-        return;
-    }
-
-    const room =
-        roomSnapshot.val();
-
-    if (room.started) {
-
-        setError(
-            "browseError",
-            "that room has already started."
-        );
-
-        return;
-    }
-
-    const playersSnapshot =
-        await get(
+        const roomRef =
             ref(
                 db,
-                "rooms/" +
-                roomCode +
-                "/players"
-            )
-        );
+                "rooms/" + roomCode
+            );
 
-    const playerCount =
-        playersSnapshot.exists()
-            ? Object.keys(
-                playersSnapshot.val()
-            ).length
-            : 0;
+        const roomSnapshot =
+            await get(roomRef);
 
-    if (
-        playerCount >=
-        room.maxPlayers
-    ) {
+        if (!roomSnapshot.exists()) {
 
-        setError(
-            "browseError",
-            "that room is full."
-        );
+            setError(
+                "browseError",
+                "that room doesn't exist."
+            );
 
-        return;
-    }
+            return;
+        }
 
-    const claimed =
-        await claimName(
+        const room =
+            roomSnapshot.val();
+
+        if (room.started) {
+
+            setError(
+                "browseError",
+                "that room has already started."
+            );
+
+            return;
+        }
+
+        const playersSnapshot =
+            await get(
+                ref(
+                    db,
+                    "rooms/" +
+                    roomCode +
+                    "/players"
+                )
+            );
+
+        const playerCount =
+            playersSnapshot.exists()
+                ? Object.keys(
+                    playersSnapshot.val()
+                ).length
+                : 0;
+
+        if (
+            playerCount >=
+            room.maxPlayers
+        ) {
+
+            setError(
+                "browseError",
+                "that room is full."
+            );
+
+            return;
+        }
+
+        const claimed =
+            await claimName(
+                roomCode,
+                name
+            );
+
+        if (!claimed) {
+
+            setError(
+                "browseError",
+                "that account name is already being used in this room."
+            );
+
+            return;
+        }
+
+        currentRoom = roomCode;
+        currentName = name;
+        currentRoomName =
+            room.name || "room";
+        isHost = false;
+
+        await setupDisconnect();
+
+        stopRoomBrowser();
+
+        enterRoom(
             roomCode,
-            name
+            name,
+            currentRoomName,
+            false
         );
 
-    if (!claimed) {
+    } catch (error) {
+
+        console.error("join room failed:", error);
 
         setError(
             "browseError",
-            "that account name is already being used in this room."
+            "couldn't join the room (" + error.code + ")."
         );
-
-        return;
     }
-
-    currentRoom = roomCode;
-    currentName = name;
-    currentRoomName =
-        room.name || "room";
-    isHost = false;
-
-    await setupDisconnect();
-
-    stopRoomBrowser();
-
-    enterRoom(
-        roomCode,
-        name,
-        currentRoomName,
-        false
-    );
 }
 
 
@@ -1893,30 +1942,42 @@ async function sendMessage() {
             message
         );
 
-    const messagesRef =
-        ref(
-            db,
-            "rooms/" +
-            currentRoom +
-            "/messages"
+    try {
+
+        const messagesRef =
+            ref(
+                db,
+                "rooms/" +
+                currentRoom +
+                "/messages"
+            );
+
+        const messageRef =
+            push(messagesRef);
+
+        await set(
+            messageRef,
+            {
+                uid: currentUser.uid,
+                name: currentName,
+                text: message,
+                timestamp: serverTimestamp()
+            }
         );
 
-    const messageRef =
-        push(messagesRef);
+        document.getElementById(
+            "chatInput"
+        ).value = "";
 
-    await set(
-        messageRef,
-        {
-            uid: currentUser.uid,
-            name: currentName,
-            text: message,
-            timestamp: serverTimestamp()
-        }
-    );
+    } catch (error) {
 
-    document.getElementById(
-        "chatInput"
-    ).value = "";
+        console.error("send message failed:", error);
+
+        setError(
+            "roomError",
+            "couldn't send message (" + error.code + ")."
+        );
+    }
 }
 
 
@@ -1958,54 +2019,66 @@ document.getElementById(
             return;
         }
 
-        const roomSnapshot =
-            await get(
+        try {
+
+            const roomSnapshot =
+                await get(
+                    ref(
+                        db,
+                        "rooms/" +
+                        currentRoom
+                    )
+                );
+
+            if (!roomSnapshot.exists()) {
+                return;
+            }
+
+            const room =
+                roomSnapshot.val();
+
+            if (
+                room.host !==
+                currentUser.uid
+            ) {
+                return;
+            }
+
+            const playerCount =
+                countPlayers(
+                    room.players
+                );
+
+            if (playerCount < 2) {
+
+                setError(
+                    "roomError",
+                    "at least 2 players are required to start."
+                );
+
+                return;
+            }
+
+            await update(
                 ref(
                     db,
                     "rooms/" +
                     currentRoom
-                )
+                ),
+                {
+                    started: true
+                }
             );
 
-        if (!roomSnapshot.exists()) {
-            return;
-        }
+        } catch (error) {
 
-        const room =
-            roomSnapshot.val();
-
-        if (
-            room.host !==
-            currentUser.uid
-        ) {
-            return;
-        }
-
-        const playerCount =
-            countPlayers(
-                room.players
-            );
-
-        if (playerCount < 2) {
+            console.error("start room failed:", error);
 
             setError(
                 "roomError",
-                "at least 2 players are required to start."
+                "couldn't start the room (" + error.code + ")."
             );
-
-            return;
         }
-
-        await update(
-            ref(
-                db,
-                "rooms/" +
-                currentRoom
-            ),
-            {
-                started: true
-            }
-        );
     };
 
 
@@ -2068,49 +2141,56 @@ async function leaveRoom(
         messagesListener = null;
     }
 
-    if (disconnectPlayerRef) {
+    try {
 
-        await disconnectPlayerRef.cancel();
+        if (disconnectPlayerRef) {
 
-        disconnectPlayerRef = null;
-    }
+            await disconnectPlayerRef.cancel();
 
-    if (disconnectNameRef) {
+            disconnectPlayerRef = null;
+        }
 
-        await disconnectNameRef.cancel();
+        if (disconnectNameRef) {
 
-        disconnectNameRef = null;
-    }
+            await disconnectNameRef.cancel();
 
-    await remove(
-        ref(
-            db,
-            "rooms/" +
-            roomCode +
-            "/players/" +
-            currentUser.uid
-        )
-    );
-
-    await remove(
-        ref(
-            db,
-            "rooms/" +
-            roomCode +
-            "/names/" +
-            normalized
-        )
-    );
-
-    if (deleteEntireRoom && wasHost) {
+            disconnectNameRef = null;
+        }
 
         await remove(
             ref(
                 db,
                 "rooms/" +
-                roomCode
+                roomCode +
+                "/players/" +
+                currentUser.uid
             )
         );
+
+        await remove(
+            ref(
+                db,
+                "rooms/" +
+                roomCode +
+                "/names/" +
+                normalized
+            )
+        );
+
+        if (deleteEntireRoom && wasHost) {
+
+            await remove(
+                ref(
+                    db,
+                    "rooms/" +
+                    roomCode
+                )
+            );
+        }
+
+    } catch (error) {
+
+        console.error("leave room cleanup failed:", error);
     }
 
     currentRoom = null;
