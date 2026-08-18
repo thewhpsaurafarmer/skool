@@ -146,6 +146,16 @@ button:disabled {
     display: none !important;
 }
 
+.connBanner {
+    background: #3a2a10;
+    border: 1px solid #8a5a10;
+    color: #ffcf8a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 15px;
+    font-size: 13px;
+}
+
 .roomList {
     margin-top: 20px;
 }
@@ -380,6 +390,8 @@ button:disabled {
         <div class="card">
 
             <h1>rooms</h1>
+
+            <div id="connBanner" class="connBanner hidden"></div>
 
             <div class="field">
                 <label>account name</label>
@@ -669,13 +681,14 @@ measurementId: "G-7K9VS92EPC"
 const app = initializeApp(firebaseConfig);
 
 console.log(
-    "rooms app build: no-start-empty-room-cleanup-v2"
+    "rooms app build: cross-device-fix-v1"
 );
 
 const auth = getAuth(app);
 const db = getDatabase(app);
 
 let currentUser = null;
+let authReady = false;
 
 let currentRoom = null;
 let currentName = null;
@@ -687,6 +700,7 @@ let roomListener = null;
 let playersListener = null;
 let messagesListener = null;
 let browserListener = null;
+let connListener = null;
 
 let disconnectPlayerRef = null;
 let disconnectNameRef = null;
@@ -863,6 +877,70 @@ function setError(id, text) {
 }
 
 
+// Turns a raw Firebase error into something a user (or you, debugging on
+// another device) can actually act on instead of just failing silently.
+function describeFirebaseError(error) {
+
+    if (!error) {
+        return "unknown error.";
+    }
+
+    if (error.code === "PERMISSION_DENIED") {
+        return "permission denied by the database rules. " +
+            "open the Firebase console -> Realtime Database -> Rules, " +
+            "and make sure reads/writes are allowed for signed-in users " +
+            "(for example \".read\": \"auth != null\", \".write\": \"auth != null\").";
+    }
+
+    if (error.code === "auth/unauthorized-domain") {
+        return "this domain isn't authorized for sign-in. " +
+            "open the Firebase console -> Authentication -> Settings -> " +
+            "Authorized domains, and add the domain you're loading this page from.";
+    }
+
+    if (error.code === "auth/admin-restricted-operation" ||
+        error.code === "auth/operation-not-allowed") {
+        return "anonymous sign-in isn't enabled for this project. " +
+            "open the Firebase console -> Authentication -> Sign-in method, " +
+            "and enable the Anonymous provider.";
+    }
+
+    return (error.message || error.code || String(error)) + ".";
+}
+
+
+/* ============================== */
+/* CONNECTION STATUS              */
+/* ============================== */
+// Shows a banner whenever this device loses its live connection to
+// Firebase, so "rooms aren't showing up" doesn't fail silently -
+// this is what actually differs between devices/networks most often.
+
+function startConnectionWatcher() {
+
+    if (connListener) {
+        connListener();
+    }
+
+    const connectedRef = ref(db, ".info/connected");
+
+    connListener = onValue(connectedRef, snapshot => {
+
+        const banner = document.getElementById("connBanner");
+
+        if (snapshot.val() === true) {
+            banner.classList.add("hidden");
+            banner.textContent = "";
+        } else {
+            banner.classList.remove("hidden");
+            banner.textContent =
+                "not connected to the server yet - rooms won't appear until this connects. " +
+                "check your internet connection.";
+        }
+    });
+}
+
+
 /* ============================== */
 /* AUTH                           */
 /* ============================== */
@@ -873,7 +951,7 @@ signInAnonymously(auth)
 
         setError(
             "homeError",
-            "couldn't connect (" + error.code + "). check your internet connection and try reloading."
+            "couldn't connect: " + describeFirebaseError(error)
         );
     });
 
@@ -881,11 +959,14 @@ signInAnonymously(auth)
 onAuthStateChanged(auth, user => {
 
     currentUser = user;
+    authReady = !!user;
 
     if (user) {
         clearErrors();
     }
 });
+
+startConnectionWatcher();
 
 
 /* ============================== */
@@ -920,6 +1001,16 @@ document.getElementById("createButton").onclick = () => {
 document.getElementById("browseButton").onclick = () => {
 
     clearErrors();
+
+    if (!authReady) {
+
+        setError(
+            "homeError",
+            "still connecting to the server - wait a second and try again."
+        );
+
+        return;
+    }
 
     const name = cleanName(
         document.getElementById("homeName").value
@@ -1157,6 +1248,28 @@ function startRoomBrowser() {
 
                     roomList.appendChild(roomElement);
                 });
+        },
+        error => {
+
+            // This is the important part for the "rooms don't appear"
+            // symptom: previously a permission/network error here just
+            // failed silently and the list stayed empty forever. Now it
+            // tells you exactly why.
+            console.error("room browser failed:", error);
+
+            const roomList =
+                document.getElementById("roomList");
+
+            document.getElementById(
+                "roomCount"
+            ).textContent = "error";
+
+            roomList.innerHTML = "";
+
+            setError(
+                "browseError",
+                "couldn't load rooms: " + describeFirebaseError(error)
+            );
         }
     );
 }
@@ -1187,7 +1300,7 @@ document.getElementById(
 
         setError(
             "createError",
-            "connecting to server..."
+            "still connecting to the server - wait a second and try again."
         );
 
         return;
@@ -1348,10 +1461,7 @@ document.getElementById(
 
         setError(
             "createError",
-            "couldn't create the room (" + error.code + "). " +
-            (error.code === "PERMISSION_DENIED"
-                ? "your database rules are blocking writes."
-                : "check your connection and try again.")
+            "couldn't create the room: " + describeFirebaseError(error)
         );
 
     } finally {
@@ -1549,7 +1659,7 @@ async function joinRoom(
 
         setError(
             "browseError",
-            "connecting to server..."
+            "still connecting to the server - wait a second and try again."
         );
 
         return;
@@ -1648,7 +1758,7 @@ async function joinRoom(
 
         setError(
             "browseError",
-            "couldn't join the room (" + error.code + ")."
+            "couldn't join the room: " + describeFirebaseError(error)
         );
     }
 }
@@ -1796,6 +1906,15 @@ function listenToRoom() {
                     room.private
                         ? "private"
                         : "";
+            },
+            error => {
+
+                console.error("room listener failed:", error);
+
+                setError(
+                    "roomError",
+                    "lost connection to this room: " + describeFirebaseError(error)
+                );
             }
         );
 }
@@ -1898,6 +2017,15 @@ function listenToPlayers() {
                                 div
                             );
                     }
+                );
+            },
+            error => {
+
+                console.error("players listener failed:", error);
+
+                setError(
+                    "roomError",
+                    "couldn't load players: " + describeFirebaseError(error)
                 );
             }
         );
@@ -2023,6 +2151,15 @@ function listenToMessages() {
 
                 chat.scrollTop =
                     chat.scrollHeight;
+            },
+            error => {
+
+                console.error("messages listener failed:", error);
+
+                setError(
+                    "roomError",
+                    "couldn't load chat: " + describeFirebaseError(error)
+                );
             }
         );
 }
@@ -2098,7 +2235,7 @@ async function sendMessage() {
 
         setError(
             "roomError",
-            "couldn't send message (" + error.code + ")."
+            "couldn't send message: " + describeFirebaseError(error)
         );
     }
 }
